@@ -28,6 +28,42 @@ def test_index_status_shape() -> None:
     assert body["indexed"] is False
 
 
+def test_get_graph_empty_when_unindexed() -> None:
+    app = create_app(llm_client=FakeLLMClient([]))
+    client = TestClient(app)
+    res = client.get("/graph")
+    assert res.status_code == 200
+    assert res.json() == {"nodes": [], "edges": []}
+
+
+def test_get_graph_returns_expected_shape_for_sample_repo() -> None:
+    app = create_app(llm_client=FakeLLMClient([]))
+    graph = build_dependency_graph(DEFAULT_SAMPLE_REPO)
+    app.state.repo_state = RepoState(
+        indexed=True,
+        files=5,
+        chunks=9,
+        edges=graph.number_of_edges(),
+        repo_root=DEFAULT_SAMPLE_REPO,
+        graph=graph,
+        collection=None,
+    )
+    client = TestClient(app)
+    res = client.get("/graph")
+    assert res.status_code == 200
+    body = res.json()
+    assert "nodes" in body and "edges" in body
+    node_ids = {n["id"] for n in body["nodes"]}
+    assert "shop/auth.py" in node_ids
+    assert "shop/auth.py::check_rate_limit" in node_ids
+    assert any(
+        e["source"] == "shop/orders.py::place_order"
+        and e["target"] == "shop/auth.py::check_rate_limit"
+        and e["kind"] == "calls"
+        for e in body["edges"]
+    )
+
+
 def test_post_index_rejects_outside_allowed_root(tmp_path: Path) -> None:
     app = create_app(llm_client=FakeLLMClient([]))
     client = TestClient(app)
@@ -74,3 +110,10 @@ def test_post_ask_with_fake_llm_client() -> None:
     assert body["citations"][0]["verified"] is True
     assert len(body["trace"]) == 1
     assert body["trace"][0]["tool"] == "read_file"
+    assert set(body["highlight"].keys()) == {
+        "nodes",
+        "target_nodes",
+        "edges",
+        "unverified_nodes",
+    }
+    assert "shop/auth.py::check_rate_limit" in body["highlight"]["nodes"]
