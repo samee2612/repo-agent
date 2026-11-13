@@ -1,0 +1,72 @@
+[
+  {
+    "id": "q1",
+    "category": "lookup",
+    "question": "Where is login defined and what parameters does it take?",
+    "expected_files": ["shop/auth.py"],
+    "expected_symbols": ["shop/auth.py::login"]
+  },
+  {
+    "id": "q2",
+    "category": "lookup",
+    "question": "Which function calculates order payment totals with tax?",
+    "expected_files": ["shop/payments.py"],
+    "expected_symbols": ["shop/payments.py::calculate_total"]
+  },
+  {
+    "id": "q3",
+    "category": "dependency",
+    "question": "Which modules or functions depend on shop/auth.py::check_rate_limit?",
+    "expected_files": ["shop/orders.py", "shop/config.py", "tests/test_auth.py", "shop/auth.py"],
+    "expected_symbols": ["shop/orders.py::place_order", "shop/config.py::enforce_throttle", "tests/test_auth.py::test_check_rate_limit_allows_valid_user"]
+  },
+  {
+    "id": "q4",
+    "category": "dependency",
+    "question": "Does shop/payments.py depend on shop/auth.py?",
+    "expected_files": ["shop/payments.py"],
+    "expected_symbols": []
+  },
+  {
+    "id": "q5",
+    "category": "explain",
+    "question": "How does place_order validate a user request before accepting an order?",
+    "expected_files": ["shop/orders.py"],
+    "expected_symbols": ["shop/orders.py::place_order"]
+  },
+  {
+    "id": "q6",
+    "category": "explain",
+    "question": "What does login return when rate limiting fails or fields are missing?",
+    "expected_files": ["shop/auth.py"],
+    "expected_symbols": ["shop/auth.py::login"]
+  },
+  {
+    "id": "q7",
+    "category": "alias",
+    "question": "What does throttle refer to and which function calls it?",
+    "expected_files": ["shop/config.py", "shop/auth.py"],
+    "expected_symbols": ["shop/config.py::enforce_throttle", "shop/auth.py::check_rate_limit"]
+  },
+  {
+    "id": "q8",
+    "category": "alias",
+    "question": "Which constant sets the maximum login attempts and where is it used?",
+    "expected_files": ["shop/config.py", "shop/auth.py"],
+    "expected_symbols": ["shop/auth.py::check_rate_limit"]
+  },
+  {
+    "id": "q9",
+    "category": "negative",
+    "question": "How does the repository send confirmation emails via SMTP?",
+    "expected_files": [],
+    "expected_symbols": []
+  },
+  {
+    "id": "q10",
+    "category": "negative",
+    "question": "Which database migration tool and PostgreSQL driver does the project use?",
+    "expected_files": [],
+    "expected_symbols": []
+  }
+]
