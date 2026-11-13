@@ -48,6 +48,14 @@ docker build -t repo-agent .
 docker run -p 8000:8000 -e GEMINI_API_KEY="$GEMINI_API_KEY" -e GEMINI_MODEL="$GEMINI_MODEL" repo-agent
 ```
 
+## Split view
+
+The browser UI uses a split-screen layout: chat on the left (45%) and an interactive dependency graph rendered with `vis-network` on the right (55%, stacked vertically below 900px):
+
+- **What the graph shows**: All Python files (boxes) and top-level functions/classes (ellipses) extracted by `ast`, connected by `imports` (dashed) and `calls` (solid) edges from `GET /graph`.
+- **What triggers highlights**: When an answer arrives (or when you click an earlier answer in the chat), non-matching nodes and edges dim. Cited/dependent nodes highlight in **green**, `find_dependents` target symbols highlight in **blue**, and any unverified citations highlight in **red with a dashed border**. Clicking a citation centers the graph on its node; clicking a node shows its details and citing questions; hovering a node highlights matching chat citations.
+- **Deterministic provenance**: Highlights come strictly from deterministic tool results (`find_dependents`) and verified citations (`app/verifier.py` + `app/highlight.py`). The LLM never decides what gets highlighted.
+
 ## Design and limits
 
 - **Why parsing is deterministic**: Code chunking and dependency graph construction use Python's standard-library `ast` module rather than an LLM. This guarantees reproducible symbol boundaries, exact line numbers, and zero-cost indexing without hallucinated edges.
