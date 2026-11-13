@@ -1083,11 +1083,14 @@
       chatEl.appendChild(thinkingEl);
       scrollToBottom();
 
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 65000);
       try {
         const res = await fetch("/ask", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ question }),
+          signal: controller.signal,
         });
         const data = await parseJsonSafe(res);
         if (!res.ok) {
@@ -1097,8 +1100,13 @@
         appendAgentMessage(question, data);
       } catch (err) {
         if (thinkingEl.parentNode) thinkingEl.parentNode.removeChild(thinkingEl);
-        appendErrorMessage(err.message);
+        const msg =
+          err.name === "AbortError"
+            ? "Request timed out after 65s. Check the uvicorn terminal for Gemini rate limits or errors."
+            : err.message;
+        appendErrorMessage(msg);
       } finally {
+        clearTimeout(timeoutId);
         setSendingState(false);
         questionInput.focus();
       }
