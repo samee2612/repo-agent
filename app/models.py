@@ -49,6 +49,23 @@ class TraceStep(BaseModel):
     result_summary: str
 
 
+class HighlightEdge(BaseModel):
+    """A highlighted dependency edge between two graph nodes."""
+
+    source: str
+    target: str
+    kind: str
+
+
+class HighlightData(BaseModel):
+    """Deterministic graph highlight payload derived from verified citations and tool results."""
+
+    nodes: list[str] = Field(default_factory=list)
+    target_nodes: list[str] = Field(default_factory=list)
+    edges: list[HighlightEdge] = Field(default_factory=list)
+    unverified_nodes: list[str] = Field(default_factory=list)
+
+
 class Answer(BaseModel):
     """Final verified answer returned by the agent and POST /ask."""
 
@@ -57,6 +74,7 @@ class Answer(BaseModel):
     grounded: bool
     status: Literal["ok", "step_limit", "timeout"] = "ok"
     trace: list[TraceStep] = Field(default_factory=list)
+    highlight: HighlightData = Field(default_factory=HighlightData)
 
 
 class IndexRequest(BaseModel):
