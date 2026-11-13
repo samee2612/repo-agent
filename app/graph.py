@@ -150,3 +150,46 @@ def build_dependency_graph(
                         )
 
     return graph
+
+
+def export_graph_json(graph: nx.DiGraph | None) -> dict[str, list[dict]]:
+    """Serialize the NetworkX dependency graph to JSON-ready nodes and edges."""
+    if graph is None:
+        return {"nodes": [], "edges": []}
+
+    nodes: list[dict] = []
+    for node_id, data in sorted(graph.nodes(data=True), key=lambda item: item[0]):
+        node_type = data.get("type")
+        if node_type == "file":
+            nodes.append(
+                {
+                    "id": node_id,
+                    "label": Path(node_id).name,
+                    "kind": "file",
+                }
+            )
+        elif node_type == "symbol":
+            nodes.append(
+                {
+                    "id": node_id,
+                    "label": data.get("name", node_id),
+                    "kind": data.get("kind", "function"),
+                    "path": data.get("path", ""),
+                    "start_line": int(data.get("start_line", 0)),
+                    "end_line": int(data.get("end_line", 0)),
+                }
+            )
+
+    edges: list[dict] = []
+    for source, target, data in sorted(
+        graph.edges(data=True), key=lambda item: (item[0], item[1])
+    ):
+        edges.append(
+            {
+                "source": source,
+                "target": target,
+                "kind": data.get("relation", "calls"),
+            }
+        )
+
+    return {"nodes": nodes, "edges": edges}
