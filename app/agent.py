@@ -4,6 +4,7 @@ import time
 from typing import Any
 
 from app.config import AGENT_TIMEOUT_SECONDS, MAX_TOOL_ROUNDS
+from app.highlight import compute_highlight
 from app.llm import LLMClient
 from app.models import Answer, TraceStep
 from app.tools import RepoTools, get_gemini_tools
@@ -88,6 +89,7 @@ def run_agent(
 
     trace: list[TraceStep] = []
     evidence_ranges: list[tuple[str, int, int]] = []
+    dependents_results: list[dict[str, Any]] = []
     step_counter = 0
 
     for _round_idx in range(max_rounds):
@@ -97,12 +99,14 @@ def run_agent(
                 f"Gathered {len(trace)} tool step(s)."
             )
             citations, grounded = verify_citations(partial, evidence_ranges)
+            highlight = compute_highlight(citations, dependents_results, repo_tools.graph)
             return Answer(
                 answer=partial,
                 citations=citations,
                 grounded=grounded,
                 status="timeout",
                 trace=trace,
+                highlight=highlight,
             )
 
         response = llm_client.generate(
@@ -117,12 +121,14 @@ def run_agent(
             if not answer_text:
                 answer_text = "Insufficient evidence to answer the question."
             citations, grounded = verify_citations(answer_text, evidence_ranges)
+            highlight = compute_highlight(citations, dependents_results, repo_tools.graph)
             return Answer(
                 answer=answer_text,
                 citations=citations,
                 grounded=grounded,
                 status="ok",
                 trace=trace,
+                highlight=highlight,
             )
 
         # Append model turn to history.
@@ -141,18 +147,25 @@ def run_agent(
                     f"Gathered {len(trace)} tool step(s)."
                 )
                 citations, grounded = verify_citations(partial, evidence_ranges)
+                highlight = compute_highlight(
+                    citations, dependents_results, repo_tools.graph
+                )
                 return Answer(
                     answer=partial,
                     citations=citations,
                     grounded=grounded,
                     status="timeout",
                     trace=trace,
+                    highlight=highlight,
                 )
 
             step_counter += 1
             tool_name = fc.name
             tool_args = dict(getattr(fc, "args", None) or {})
             result = repo_tools.execute(tool_name, tool_args)
+
+            if tool_name == "find_dependents" and result.get("ok") and result.get("data"):
+                dependents_results.append(result["data"])
 
             evidence_ranges.extend(collect_evidence_ranges(tool_name, result))
             trace.append(
@@ -178,10 +191,12 @@ def run_agent(
         partial_lines.append(f"Partial evidence examined: {refs}.")
     partial_text = " ".join(partial_lines)
     citations, grounded = verify_citations(partial_text, evidence_ranges)
+    highlight = compute_highlight(citations, dependents_results, repo_tools.graph)
     return Answer(
         answer=partial_text,
         citations=citations,
         grounded=grounded,
         status="step_limit",
         trace=trace,
+        highlight=highlight,
     )
