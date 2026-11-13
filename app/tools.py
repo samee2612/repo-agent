@@ -238,22 +238,70 @@ def get_gemini_tools() -> list[Any]:
         types.FunctionDeclaration(
             name="search_code",
             description="Semantic search over indexed Python functions and classes. Returns matching chunks with file path, symbol name, line range, score, and snippet.",
-            parameters_json_schema=SearchCodeInput.model_json_schema(),
+            parameters=types.Schema(
+                type="OBJECT",
+                properties={
+                    "query": types.Schema(
+                        type="STRING",
+                        description="Natural language or code search query.",
+                    ),
+                    "top_k": types.Schema(
+                        type="INTEGER",
+                        description="Maximum number of chunks to return (default 5).",
+                    ),
+                },
+                required=["query"],
+            ),
         ),
         types.FunctionDeclaration(
             name="find_dependents",
             description="Find all files and symbols that import or call a given symbol (format: 'path::name').",
-            parameters_json_schema=FindDependentsInput.model_json_schema(),
+            parameters=types.Schema(
+                type="OBJECT",
+                properties={
+                    "symbol": types.Schema(
+                        type="STRING",
+                        description="Canonical symbol identifier in the form 'path::name', e.g. 'shop/auth.py::check_rate_limit'.",
+                    ),
+                },
+                required=["symbol"],
+            ),
         ),
         types.FunctionDeclaration(
             name="read_file",
             description="Read lines from a file in the repository with 1-based line numbers.",
-            parameters_json_schema=ReadFileInput.model_json_schema(),
+            parameters=types.Schema(
+                type="OBJECT",
+                properties={
+                    "path": types.Schema(
+                        type="STRING",
+                        description="Relative path to a file inside the repository.",
+                    ),
+                    "start_line": types.Schema(
+                        type="INTEGER",
+                        description="Optional 1-based start line number.",
+                    ),
+                    "end_line": types.Schema(
+                        type="INTEGER",
+                        description="Optional 1-based end line number.",
+                    ),
+                },
+                required=["path"],
+            ),
         ),
         types.FunctionDeclaration(
             name="list_symbols",
             description="List all top-level functions and classes in a Python file with their line ranges.",
-            parameters_json_schema=ListSymbolsInput.model_json_schema(),
+            parameters=types.Schema(
+                type="OBJECT",
+                properties={
+                    "path": types.Schema(
+                        type="STRING",
+                        description="Relative path to a Python file in the repository.",
+                    ),
+                },
+                required=["path"],
+            ),
         ),
     ]
     return [types.Tool(function_declarations=declarations)]
