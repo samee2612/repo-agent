@@ -1,5 +1,6 @@
 """Agentic question-answering loop with tool execution, limits, and citation verification."""
 
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 import time
 from typing import Any
 
@@ -93,7 +94,8 @@ def run_agent(
     step_counter = 0
 
     for _round_idx in range(max_rounds):
-        if time.monotonic() - start_time >= timeout_seconds:
+        remaining = timeout_seconds - (time.monotonic() - start_time)
+        if remaining <= 0:
             partial = (
                 "Timed out before completing tool-assisted analysis. "
                 f"Gathered {len(trace)} tool step(s)."
@@ -109,11 +111,33 @@ def run_agent(
                 highlight=highlight,
             )
 
-        response = llm_client.generate(
+        executor = ThreadPoolExecutor(max_workers=1)
+        future = executor.submit(
+            llm_client.generate,
             history=history,
             tools=tools,
             system=SYSTEM_PROMPT,
         )
+        try:
+            response = future.result(timeout=remaining)
+        except FuturesTimeoutError:
+            executor.shutdown(wait=False, cancel_futures=True)
+            partial = (
+                "Timed out waiting for model response. "
+                f"Gathered {len(trace)} tool step(s)."
+            )
+            citations, grounded = verify_citations(partial, evidence_ranges)
+            highlight = compute_highlight(citations, dependents_results, repo_tools.graph)
+            return Answer(
+                answer=partial,
+                citations=citations,
+                grounded=grounded,
+                status="timeout",
+                trace=trace,
+                highlight=highlight,
+            )
+        finally:
+            executor.shutdown(wait=False)
 
         function_calls = getattr(response, "function_calls", None) or []
         if not function_calls:
