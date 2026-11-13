@@ -72,14 +72,20 @@ def create_app(llm_client: LLMClient | None = None) -> FastAPI:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
         state: RepoState = application.state.repo_state
-        files, chunks = extract_repo_chunks(repo_root)
-        chunk_count = index_chunks_to_chroma(
-            chunks=chunks,
-            persist_dir=CHROMA_PERSIST_DIR,
-            embedder=state.embedder,
-        )
-        collection = get_chroma_collection(persist_dir=CHROMA_PERSIST_DIR, reset=False)
-        graph = build_dependency_graph(repo_root, chunks=chunks)
+        try:
+            files, chunks = extract_repo_chunks(repo_root)
+            chunk_count = index_chunks_to_chroma(
+                chunks=chunks,
+                persist_dir=CHROMA_PERSIST_DIR,
+                embedder=state.embedder,
+            )
+            collection = get_chroma_collection(persist_dir=CHROMA_PERSIST_DIR, reset=False)
+            graph = build_dependency_graph(repo_root, chunks=chunks)
+        except Exception as exc:
+            import logging
+
+            logging.exception("Indexing failed")
+            raise HTTPException(status_code=500, detail=f"Indexing error: {exc}") from exc
 
         state.indexed = True
         state.files = len(files)
