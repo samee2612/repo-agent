@@ -181,15 +181,53 @@ class GroqClient(LLMClient):
             role = getattr(item, "role", "user")
             parts = getattr(item, "parts", None) or []
             text_parts = []
+            func_calls = []
             func_responses = []
             for p in parts:
                 if getattr(p, "text", None):
                     text_parts.append(p.text)
+                elif getattr(p, "function_call", None) is not None:
+                    fc = p.function_call
+                    func_calls.append(
+                        FakeFunctionCall(
+                            name=getattr(fc, "name", ""),
+                            args=dict(getattr(fc, "args", None) or {}),
+                        )
+                    )
                 elif getattr(p, "function_response", None) is not None:
                     fr = p.function_response
                     func_responses.append((fr.name, fr.response))
-            if text_parts:
-                messages.append({"role": "user" if role == "user" else "assistant", "content": "\n".join(text_parts)})
+            if func_calls:
+                tcs = []
+                pending_ids = []
+                for fc in func_calls:
+                    call_counter += 1
+                    cid = f"call_{call_counter}"
+                    pending_ids.append(cid)
+                    tcs.append(
+                        {
+                            "id": cid,
+                            "type": "function",
+                            "function": {
+                                "name": fc.name,
+                                "arguments": json.dumps(fc.args or {}),
+                            },
+                        }
+                    )
+                messages.append(
+                    {
+                        "role": "assistant",
+                        "content": "\n".join(text_parts) if text_parts else "",
+                        "tool_calls": tcs,
+                    }
+                )
+            elif text_parts:
+                messages.append(
+                    {
+                        "role": "user" if role == "user" else "assistant",
+                        "content": "\n".join(text_parts),
+                    }
+                )
             for idx, (name, payload) in enumerate(func_responses):
                 cid = pending_ids[idx] if idx < len(pending_ids) else f"call_{call_counter}"
                 messages.append(
@@ -213,15 +251,26 @@ class GroqClient(LLMClient):
             if m.get("id")
             and not any(
                 skip in m.get("id", "").lower()
-                for skip in ("whisper", "tts", "guard", "embed", "vision", "orpheus", "playai")
+                for skip in (
+                    "whisper",
+                    "tts",
+                    "guard",
+                    "embed",
+                    "vision",
+                    "orpheus",
+                    "playai",
+                    "compound",
+                    "safeguard",
+                    "allam",
+                )
             )
         ]
         preferred = (
             "meta-llama/llama-4-scout-17b-16e-instruct",
             "openai/gpt-oss-20b",
-            "qwen/qwen3-32b",
-            "meta-llama/llama-4-maverick-17b-128e-instruct",
             "openai/gpt-oss-120b",
+            "meta-llama/llama-4-maverick-17b-128e-instruct",
+            "qwen/qwen3-32b",
             "llama-3.3-70b-versatile",
             "llama-3.1-8b-instant",
         )
@@ -231,7 +280,7 @@ class GroqClient(LLMClient):
                 ordered.append(p)
         for m in available:
             if m not in ordered and any(
-                k in m.lower() for k in ("llama", "qwen", "gpt", "deepseek", "gemma", "mixtral")
+                k in m.lower() for k in ("llama", "gpt", "qwen", "deepseek", "gemma", "mixtral")
             ):
                 ordered.append(m)
         if not ordered:
@@ -246,7 +295,8 @@ class GroqClient(LLMClient):
         tools: list[Any],
         system: str,
     ) -> FakeResponse:
-        """Call Groq chat completions with automatic model rotation on 429 rate limits."""
+        """Call Groq chat completions with max_tokens=512, model rotation, and 429 retry."""
+        import re
         import httpx
 
         api_key = (self.api_key or os.environ.get("GROQ_API_KEY", "")).strip()
@@ -270,25 +320,43 @@ class GroqClient(LLMClient):
 
             last_err = ""
             data = None
-            for candidate in candidates:
-                payload = {
-                    "model": candidate,
-                    "messages": messages,
-                    "tools": self._openai_tools(),
-                    "tool_choice": "auto",
-                    "temperature": 0.0,
-                }
-                resp = client.post(
-                    f"{self.base_url}/chat/completions",
-                    headers=headers,
-                    json=payload,
-                )
-                if resp.status_code == 200:
-                    self.model = candidate
-                    data = resp.json()
+            for pass_idx in range(2):
+                shortest_wait = 5.0
+                for candidate in candidates:
+                    payload = {
+                        "model": candidate,
+                        "messages": messages,
+                        "tools": self._openai_tools(),
+                        "tool_choice": "auto",
+                        "temperature": 0.0,
+                        "max_tokens": 512,
+                    }
+                    resp = client.post(
+                        f"{self.base_url}/chat/completions",
+                        headers=headers,
+                        json=payload,
+                    )
+                    if resp.status_code == 200:
+                        self.model = candidate
+                        data = resp.json()
+                        break
+
+                    last_err = f"HTTP {resp.status_code} (model={candidate}): {resp.text}"
+                    wait_match = re.search(r"try again in ([0-9.]+)s", resp.text)
+                    if wait_match:
+                        shortest_wait = min(shortest_wait, float(wait_match.group(1)) + 0.5)
+                    logger.warning(
+                        "Groq model %s returned %d, rotating to next model...",
+                        candidate,
+                        resp.status_code,
+                    )
+
+                if data is not None:
                     break
-                last_err = f"HTTP {resp.status_code} (model={candidate}): {resp.text}"
-                logger.warning("Groq model %s returned %d, rotating to next model...", candidate, resp.status_code)
+                if pass_idx == 0:
+                    sleep_time = min(max(shortest_wait, 2.0), 12.0)
+                    logger.warning("All Groq models busy; sleeping %.1fs before retry...", sleep_time)
+                    time.sleep(sleep_time)
 
             if data is None:
                 raise RuntimeError(f"Groq API error across all models. Last error: {last_err}")
