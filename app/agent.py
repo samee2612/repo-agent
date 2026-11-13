@@ -17,6 +17,10 @@ SYSTEM_PROMPT = (
     "You MUST call tools to gather evidence before answering. "
     "Cite every claim using the exact format `path:start_line-end_line` "
     "(for example `shop/auth.py:6-11`). "
+    "Format your response with clear structure:\n"
+    "1. Start with a concise 1-2 sentence **Summary**.\n"
+    "2. Follow with a **Details** section using clean bullet points (`- **symbol/file**: explanation (path:start-end)`).\n"
+    "Do not use raw ASCII/Markdown pipe tables. "
     "If the evidence from tool results is insufficient to answer the question, "
     "say so explicitly and do not guess or invent file paths or line numbers."
 )
