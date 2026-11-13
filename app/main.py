@@ -62,6 +62,12 @@ def create_app(llm_client: LLMClient | None = None) -> FastAPI:
             edges=state.edges,
         )
 
+    @application.get("/graph")
+    def get_graph() -> dict[str, list[dict[str, Any]]]:
+        """Return the dependency graph nodes and edges, or an empty graph if unindexed."""
+        state: RepoState = application.state.repo_state
+        return export_graph_json(state.graph)
+
     @application.post("/index", response_model=IndexStatus)
     def index_repository(payload: IndexRequest | None = Body(default=None)) -> IndexStatus:
         """Index a repository directory inside ALLOWED_INDEX_ROOT."""
