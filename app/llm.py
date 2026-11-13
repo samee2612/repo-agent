@@ -202,41 +202,88 @@ class GroqClient(LLMClient):
                 )
         return messages
 
+    def _discover_model(self, client: Any, headers: dict[str, str]) -> str:
+        """Query Groq /models to pick an active tool-capable chat model on this account."""
+        resp = client.get(f"{self.base_url}/models", headers=headers)
+        if resp.status_code >= 400:
+            raise RuntimeError(f"Groq /models HTTP {resp.status_code}: {resp.text}")
+        models = [
+            m.get("id", "")
+            for m in (resp.json().get("data") or [])
+            if m.get("id")
+            and not any(
+                skip in m.get("id", "").lower()
+                for skip in ("whisper", "tts", "guard", "embed", "vision")
+            )
+        ]
+        preferred = (
+            "openai/gpt-oss-120b",
+            "openai/gpt-oss-20b",
+            "meta-llama/llama-4-scout-17b-16e-instruct",
+            "meta-llama/llama-4-maverick-17b-128e-instruct",
+            "qwen/qwen3-32b",
+            "llama-3.3-70b-versatile",
+            "llama-3.1-8b-instant",
+        )
+        for p in preferred:
+            if p in models:
+                return p
+        for m in models:
+            if any(k in m.lower() for k in ("llama", "qwen", "gpt", "deepseek", "gemma", "mixtral")):
+                return m
+        if models:
+            return models[0]
+        raise RuntimeError("No active chat models found on this Groq account.")
+
     def generate(
         self,
         history: list[Any],
         tools: list[Any],
         system: str,
     ) -> FakeResponse:
-        """Call Groq / OpenAI-compatible chat completions endpoint."""
+        """Call Groq / OpenAI-compatible chat completions endpoint with auto model discovery."""
         import httpx
 
         api_key = (self.api_key or os.environ.get("GROQ_API_KEY", "")).strip()
-        model = (self.model or os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile")).strip()
+        model = (self.model or os.environ.get("GROQ_MODEL", "")).strip()
         if not api_key:
             raise RuntimeError("Missing GROQ_API_KEY environment variable.")
 
         messages = self._convert_history(history, system)
-        payload = {
-            "model": model,
-            "messages": messages,
-            "tools": self._openai_tools(),
-            "tool_choice": "auto",
-            "temperature": 0.0,
-        }
         headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
         }
 
         with httpx.Client(timeout=25.0) as client:
+            if not model:
+                model = self._discover_model(client, headers)
+                self.model = model
+                logger.info("Auto-selected Groq model: %s", model)
+
+            payload = {
+                "model": model,
+                "messages": messages,
+                "tools": self._openai_tools(),
+                "tool_choice": "auto",
+                "temperature": 0.0,
+            }
             resp = client.post(
                 f"{self.base_url}/chat/completions",
                 headers=headers,
                 json=payload,
             )
+            if resp.status_code == 404 or "model_not_found" in resp.text:
+                model = self._discover_model(client, headers)
+                self.model = model
+                payload["model"] = model
+                resp = client.post(
+                    f"{self.base_url}/chat/completions",
+                    headers=headers,
+                    json=payload,
+                )
             if resp.status_code >= 400:
-                raise RuntimeError(f"Groq API HTTP {resp.status_code}: {resp.text}")
+                raise RuntimeError(f"Groq API HTTP {resp.status_code} (model={model}): {resp.text}")
             data = resp.json()
 
         msg = data["choices"][0]["message"]
