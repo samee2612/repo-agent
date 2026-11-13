@@ -202,38 +202,43 @@ class GroqClient(LLMClient):
                 )
         return messages
 
-    def _discover_model(self, client: Any, headers: dict[str, str]) -> str:
-        """Query Groq /models to pick an active tool-capable chat model on this account."""
+    def _discover_models(self, client: Any, headers: dict[str, str]) -> list[str]:
+        """Query Groq /models and return an ordered list of tool-capable chat models."""
         resp = client.get(f"{self.base_url}/models", headers=headers)
         if resp.status_code >= 400:
             raise RuntimeError(f"Groq /models HTTP {resp.status_code}: {resp.text}")
-        models = [
+        available = [
             m.get("id", "")
             for m in (resp.json().get("data") or [])
             if m.get("id")
             and not any(
                 skip in m.get("id", "").lower()
-                for skip in ("whisper", "tts", "guard", "embed", "vision")
+                for skip in ("whisper", "tts", "guard", "embed", "vision", "orpheus", "playai")
             )
         ]
         preferred = (
-            "openai/gpt-oss-120b",
-            "openai/gpt-oss-20b",
             "meta-llama/llama-4-scout-17b-16e-instruct",
-            "meta-llama/llama-4-maverick-17b-128e-instruct",
+            "openai/gpt-oss-20b",
             "qwen/qwen3-32b",
+            "meta-llama/llama-4-maverick-17b-128e-instruct",
+            "openai/gpt-oss-120b",
             "llama-3.3-70b-versatile",
             "llama-3.1-8b-instant",
         )
+        ordered: list[str] = []
         for p in preferred:
-            if p in models:
-                return p
-        for m in models:
-            if any(k in m.lower() for k in ("llama", "qwen", "gpt", "deepseek", "gemma", "mixtral")):
-                return m
-        if models:
-            return models[0]
-        raise RuntimeError("No active chat models found on this Groq account.")
+            if p in available and p not in ordered:
+                ordered.append(p)
+        for m in available:
+            if m not in ordered and any(
+                k in m.lower() for k in ("llama", "qwen", "gpt", "deepseek", "gemma", "mixtral")
+            ):
+                ordered.append(m)
+        if not ordered:
+            ordered = list(available)
+        if not ordered:
+            raise RuntimeError("No active chat models found on this Groq account.")
+        return ordered
 
     def generate(
         self,
@@ -241,11 +246,11 @@ class GroqClient(LLMClient):
         tools: list[Any],
         system: str,
     ) -> FakeResponse:
-        """Call Groq / OpenAI-compatible chat completions endpoint with auto model discovery."""
+        """Call Groq chat completions with automatic model rotation on 429 rate limits."""
         import httpx
 
         api_key = (self.api_key or os.environ.get("GROQ_API_KEY", "")).strip()
-        model = (self.model or os.environ.get("GROQ_MODEL", "")).strip()
+        env_model = (self.model or os.environ.get("GROQ_MODEL", "")).strip()
         if not api_key:
             raise RuntimeError("Missing GROQ_API_KEY environment variable.")
 
@@ -256,35 +261,37 @@ class GroqClient(LLMClient):
         }
 
         with httpx.Client(timeout=25.0) as client:
-            if not model:
-                model = self._discover_model(client, headers)
-                self.model = model
-                logger.info("Auto-selected Groq model: %s", model)
+            candidates = self._discover_models(client, headers)
+            if env_model and env_model not in candidates:
+                candidates.insert(0, env_model)
+            elif env_model:
+                candidates.remove(env_model)
+                candidates.insert(0, env_model)
 
-            payload = {
-                "model": model,
-                "messages": messages,
-                "tools": self._openai_tools(),
-                "tool_choice": "auto",
-                "temperature": 0.0,
-            }
-            resp = client.post(
-                f"{self.base_url}/chat/completions",
-                headers=headers,
-                json=payload,
-            )
-            if resp.status_code == 404 or "model_not_found" in resp.text:
-                model = self._discover_model(client, headers)
-                self.model = model
-                payload["model"] = model
+            last_err = ""
+            data = None
+            for candidate in candidates:
+                payload = {
+                    "model": candidate,
+                    "messages": messages,
+                    "tools": self._openai_tools(),
+                    "tool_choice": "auto",
+                    "temperature": 0.0,
+                }
                 resp = client.post(
                     f"{self.base_url}/chat/completions",
                     headers=headers,
                     json=payload,
                 )
-            if resp.status_code >= 400:
-                raise RuntimeError(f"Groq API HTTP {resp.status_code} (model={model}): {resp.text}")
-            data = resp.json()
+                if resp.status_code == 200:
+                    self.model = candidate
+                    data = resp.json()
+                    break
+                last_err = f"HTTP {resp.status_code} (model={candidate}): {resp.text}"
+                logger.warning("Groq model %s returned %d, rotating to next model...", candidate, resp.status_code)
+
+            if data is None:
+                raise RuntimeError(f"Groq API error across all models. Last error: {last_err}")
 
         msg = data["choices"][0]["message"]
         tool_calls = msg.get("tool_calls") or []
