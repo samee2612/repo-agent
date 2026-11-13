@@ -354,6 +354,44 @@
       padding: 12px 20px;
     }
 
+    .sample-questions {
+      max-width: 880px;
+      margin: 0 auto 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .sample-label {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--muted);
+      margin-right: 4px;
+    }
+
+    .sample-chip {
+      background: var(--surface-alt);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 5px 12px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: border-color 0.15s ease, background 0.15s ease;
+    }
+
+    .sample-chip:hover:not(:disabled) {
+      background: #1e3a5f;
+      border-color: var(--accent);
+    }
+
+    .sample-chip strong {
+      color: #93c5fd;
+      margin-right: 4px;
+    }
+
     .composer {
       max-width: 880px;
       margin: 0 auto;
@@ -396,11 +434,35 @@
 
   <main id="chat">
     <div id="empty-state" class="empty-state">
-      Click <strong>Index sample repo</strong> to index the codebase, then ask a question below.
+      Click <strong>Index sample repo</strong> to index the codebase, then click a sample question or type your own below.
     </div>
   </main>
 
   <footer>
+    <div class="sample-questions">
+      <span class="sample-label">Try:</span>
+      <button
+        type="button"
+        class="sample-chip"
+        data-question="Where is login defined and what parameters does it take?"
+      >
+        <strong>Lookup:</strong> Where is login defined and what parameters does it take?
+      </button>
+      <button
+        type="button"
+        class="sample-chip"
+        data-question="Which modules or functions depend on shop/auth.py::check_rate_limit?"
+      >
+        <strong>Dependency:</strong> Which modules or functions depend on shop/auth.py::check_rate_limit?
+      </button>
+      <button
+        type="button"
+        class="sample-chip"
+        data-question="How does place_order validate a user request before accepting an order?"
+      >
+        <strong>Explain:</strong> How does place_order validate a user request before accepting an order?
+      </button>
+    </div>
     <div class="composer">
       <textarea
         id="question-input"
@@ -717,10 +779,15 @@
       scrollToBottom();
     }
 
+    const sampleChips = document.querySelectorAll(".sample-chip");
+
     function setSendingState(sending) {
       isRequestInFlight = sending;
       sendBtn.disabled = sending;
       questionInput.disabled = sending;
+      sampleChips.forEach((chip) => {
+        chip.disabled = sending;
+      });
     }
 
     async function handleIndexClick() {
@@ -792,6 +859,13 @@
 
     indexBtn.addEventListener("click", handleIndexClick);
     sendBtn.addEventListener("click", handleSend);
+    sampleChips.forEach((chip) => {
+      chip.addEventListener("click", () => {
+        if (isRequestInFlight) return;
+        questionInput.value = chip.getAttribute("data-question") || "";
+        handleSend();
+      });
+    });
     questionInput.addEventListener("keydown", (event) => {
       if (event.key === "Enter" && !event.shiftKey) {
         event.preventDefault();
