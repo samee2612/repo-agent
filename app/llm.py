@@ -2,6 +2,7 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+import logging
 import time
 from typing import Any
 
@@ -10,6 +11,8 @@ from app.config import (
     LLM_MAX_RETRIES,
     get_gemini_config,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class LLMClient(ABC):
@@ -47,6 +50,8 @@ class GeminiClient(LLMClient):
     ) -> None:
         self.max_retries = max_retries
         self.initial_backoff = initial_backoff
+        self._client: Any = None
+        self._cached_key: str | None = None
 
     def generate(
         self,
@@ -59,7 +64,10 @@ class GeminiClient(LLMClient):
         from google import genai
         from google.genai import types
 
-        client = genai.Client(api_key=api_key)
+        if self._client is None or self._cached_key != api_key:
+            self._client = genai.Client(api_key=api_key)
+            self._cached_key = api_key
+
         config = types.GenerateContentConfig(
             system_instruction=system,
             tools=tools,
@@ -68,7 +76,7 @@ class GeminiClient(LLMClient):
         last_exc: Exception | None = None
         for attempt in range(self.max_retries + 1):
             try:
-                return client.models.generate_content(
+                return self._client.models.generate_content(
                     model=model_name,
                     contents=history,
                     config=config,
@@ -77,6 +85,13 @@ class GeminiClient(LLMClient):
                 last_exc = exc
                 if attempt < self.max_retries and _is_retryable_error(exc):
                     delay = self.initial_backoff * (2**attempt)
+                    logger.warning(
+                        "Gemini rate-limited/unavailable (%s); retrying in %.1fs (%d/%d)",
+                        exc,
+                        delay,
+                        attempt + 1,
+                        self.max_retries,
+                    )
                     time.sleep(delay)
                     continue
                 raise
