@@ -4,7 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>repo-agent</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.9/standalone/umd/vis-network.min.js"></script>
   <style>
     :root {
       --bg: #0f172a;
@@ -35,7 +34,6 @@
       display: flex;
       flex-direction: column;
       height: 100vh;
-      overflow: hidden;
     }
 
     header {
@@ -43,11 +41,10 @@
       align-items: center;
       justify-content: space-between;
       gap: 16px;
-      padding: 12px 20px;
+      padding: 12px 24px;
       background: var(--surface);
       border-bottom: 1px solid var(--border);
       flex-wrap: wrap;
-      flex-shrink: 0;
     }
 
     .brand {
@@ -95,76 +92,23 @@
       cursor: not-allowed;
     }
 
-    button.secondary {
-      background: var(--surface-alt);
-      border: 1px solid var(--border);
-      color: var(--text);
-    }
-
-    button.secondary:hover:not(:disabled) {
-      background: #334155;
-    }
-
-    .workspace {
-      flex: 1;
-      display: flex;
-      min-height: 0;
-      width: 100%;
-    }
-
-    .chat-pane {
-      width: 45%;
-      display: flex;
-      flex-direction: column;
-      border-right: 1px solid var(--border);
-      min-height: 0;
-    }
-
-    .graph-pane {
-      width: 55%;
-      display: flex;
-      flex-direction: column;
-      min-height: 0;
-      background: #0b1220;
-    }
-
-    @media (max-width: 900px) {
-      body {
-        height: auto;
-        min-height: 100vh;
-        overflow: auto;
-      }
-      .workspace {
-        flex-direction: column;
-      }
-      .chat-pane,
-      .graph-pane {
-        width: 100%;
-        border-right: none;
-      }
-      .chat-pane {
-        height: 55vh;
-        border-bottom: 1px solid var(--border);
-      }
-      .graph-pane {
-        height: 55vh;
-      }
-    }
-
     main#chat {
       flex: 1;
       overflow-y: auto;
-      padding: 16px;
+      padding: 24px 20px;
       display: flex;
       flex-direction: column;
-      gap: 14px;
+      gap: 16px;
+      max-width: 880px;
+      width: 100%;
+      margin: 0 auto;
     }
 
     .empty-state {
       margin: auto;
       text-align: center;
       color: var(--muted);
-      max-width: 420px;
+      max-width: 460px;
       line-height: 1.5;
     }
 
@@ -182,11 +126,11 @@
     }
 
     .bubble {
-      max-width: 90%;
+      max-width: 85%;
       border-radius: 12px;
-      padding: 12px 14px;
-      line-height: 1.5;
-      font-size: 0.92rem;
+      padding: 14px 18px;
+      line-height: 1.55;
+      font-size: 0.95rem;
       border: 1px solid var(--border);
     }
 
@@ -200,13 +144,7 @@
     .msg-row.agent .bubble {
       background: var(--surface);
       width: 100%;
-      cursor: pointer;
-      transition: border-color 0.15s ease;
-    }
-
-    .msg-row.agent .bubble.active-answer {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.35);
+      max-width: 100%;
     }
 
     .msg-row.error .bubble {
@@ -219,15 +157,17 @@
       display: flex;
       align-items: center;
       gap: 8px;
-      margin-bottom: 8px;
+      margin-bottom: 12px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
       flex-wrap: wrap;
     }
 
     .badge {
       display: inline-block;
-      font-size: 0.72rem;
+      font-size: 0.74rem;
       font-weight: 600;
-      padding: 2px 8px;
+      padding: 3px 9px;
       border-radius: 999px;
     }
 
@@ -246,9 +186,85 @@
       color: var(--amber-text);
     }
 
-    .answer-text {
-      white-space: pre-wrap;
-      word-break: break-word;
+    .answer-body {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .answer-heading {
+      margin: 6px 0 2px;
+      font-size: 0.98rem;
+      font-weight: 700;
+      color: #e2e8f0;
+    }
+
+    .answer-para {
+      margin: 0;
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    .answer-list {
+      margin: 2px 0;
+      padding-left: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .answer-list li {
+      line-height: 1.55;
+      background: rgba(15, 23, 42, 0.45);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 12px;
+      list-style-type: none;
+    }
+
+    .answer-list {
+      padding-left: 0;
+    }
+
+    .inline-code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.84rem;
+      background: var(--surface-alt);
+      border: 1px solid var(--border);
+      padding: 1px 6px;
+      border-radius: 5px;
+      color: #93c5fd;
+    }
+
+    .answer-table-wrap {
+      overflow-x: auto;
+      margin: 4px 0;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+
+    table.answer-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.88rem;
+    }
+
+    table.answer-table th,
+    table.answer-table td {
+      padding: 8px 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+
+    table.answer-table th {
+      background: var(--surface-alt);
+      color: #cbd5e1;
+      font-weight: 600;
+    }
+
+    table.answer-table tr:last-child td {
+      border-bottom: none;
     }
 
     .status-note {
@@ -257,22 +273,22 @@
       border-radius: 8px;
       background: var(--amber-bg);
       color: var(--amber-text);
-      font-size: 0.82rem;
+      font-size: 0.85rem;
     }
 
     .citations {
-      margin-top: 12px;
-      padding-top: 10px;
+      margin-top: 14px;
+      padding-top: 12px;
       border-top: 1px solid var(--border);
     }
 
     .citations-title {
-      font-size: 0.75rem;
+      font-size: 0.76rem;
       font-weight: 600;
       color: var(--muted);
-      margin-bottom: 6px;
+      margin-bottom: 8px;
       text-transform: uppercase;
-      letter-spacing: 0.04em;
+      letter-spacing: 0.05em;
     }
 
     .citation-list {
@@ -281,7 +297,7 @@
       padding: 0;
       display: flex;
       flex-wrap: wrap;
-      gap: 6px;
+      gap: 8px;
     }
 
     .citation-item {
@@ -291,24 +307,16 @@
       background: var(--surface-alt);
       border: 1px solid var(--border);
       border-radius: 6px;
-      padding: 4px 8px;
-      font-size: 0.8rem;
+      padding: 4px 9px;
+      font-size: 0.82rem;
       font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-      cursor: pointer;
-      transition: border-color 0.15s ease, background 0.15s ease;
-    }
-
-    .citation-item:hover,
-    .citation-item.hovered {
-      border-color: var(--accent);
-      background: #1e3a5f;
     }
 
     details.trace-box {
-      margin-top: 10px;
-      padding-top: 8px;
+      margin-top: 12px;
+      padding-top: 10px;
       border-top: 1px solid var(--border);
-      font-size: 0.82rem;
+      font-size: 0.84rem;
     }
 
     details.trace-box summary {
@@ -329,7 +337,7 @@
     .trace-step {
       color: var(--text);
       font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-      font-size: 0.78rem;
+      font-size: 0.8rem;
       word-break: break-word;
     }
 
@@ -340,13 +348,15 @@
       padding: 4px 0;
     }
 
-    .composer-wrap {
+    footer {
       background: var(--surface);
       border-top: 1px solid var(--border);
-      padding: 12px 16px;
+      padding: 12px 20px;
     }
 
     .composer {
+      max-width: 880px;
+      margin: 0 auto;
       display: flex;
       gap: 10px;
       align-items: flex-end;
@@ -355,105 +365,21 @@
     textarea {
       flex: 1;
       resize: none;
-      min-height: 42px;
-      max-height: 140px;
+      min-height: 44px;
+      max-height: 150px;
       border-radius: 8px;
       border: 1px solid var(--border);
       background: var(--bg);
       color: var(--text);
       padding: 10px 12px;
       font-family: inherit;
-      font-size: 0.92rem;
+      font-size: 0.95rem;
       line-height: 1.4;
     }
 
     textarea:focus {
       outline: 2px solid var(--accent);
       border-color: transparent;
-    }
-
-    .graph-toolbar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      padding: 10px 16px;
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      flex-wrap: wrap;
-    }
-
-    .graph-legend {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      font-size: 0.78rem;
-      color: var(--muted);
-      flex-wrap: wrap;
-    }
-
-    .legend-dot {
-      display: inline-block;
-      width: 10px;
-      height: 10px;
-      border-radius: 999px;
-      margin-right: 4px;
-    }
-
-    .graph-note {
-      padding: 8px 16px;
-      background: var(--amber-bg);
-      color: var(--amber-text);
-      font-size: 0.82rem;
-      border-bottom: 1px solid var(--border);
-      display: none;
-    }
-
-    .graph-canvas-wrap {
-      flex: 1;
-      position: relative;
-      min-height: 0;
-    }
-
-    #graph-canvas {
-      width: 100%;
-      height: 100%;
-    }
-
-    .graph-fallback {
-      padding: 16px;
-      overflow-y: auto;
-      height: 100%;
-      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-      font-size: 0.82rem;
-      color: var(--muted);
-    }
-
-    .node-details {
-      background: var(--surface);
-      border-top: 1px solid var(--border);
-      padding: 10px 16px;
-      font-size: 0.82rem;
-      max-height: 160px;
-      overflow-y: auto;
-    }
-
-    .node-details-title {
-      font-weight: 600;
-      color: var(--text);
-      margin-bottom: 4px;
-    }
-
-    .node-details-meta {
-      color: var(--muted);
-      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-      font-size: 0.78rem;
-    }
-
-    .node-details-cites {
-      margin: 6px 0 0;
-      padding-left: 16px;
-      color: var(--text);
     }
   </style>
 </head>
@@ -468,69 +394,32 @@
     </div>
   </header>
 
-  <div class="workspace">
-    <section class="chat-pane">
-      <main id="chat">
-        <div id="empty-state" class="empty-state">
-          Click <strong>Index sample repo</strong> to index the codebase, then ask a question below.
-        </div>
-      </main>
-      <div class="composer-wrap">
-        <div class="composer">
-          <textarea
-            id="question-input"
-            rows="1"
-            placeholder="Ask a question about the repository... (Enter to send, Shift+Enter for newline)"
-          ></textarea>
-          <button id="send-btn" type="button">Send</button>
-        </div>
-      </div>
-    </section>
+  <main id="chat">
+    <div id="empty-state" class="empty-state">
+      Click <strong>Index sample repo</strong> to index the codebase, then ask a question below.
+    </div>
+  </main>
 
-    <section class="graph-pane">
-      <div class="graph-toolbar">
-        <div class="graph-legend">
-          <span><span class="legend-dot" style="background:#3b82f6"></span>Target</span>
-          <span><span class="legend-dot" style="background:#10b981"></span>Cited / Dependent</span>
-          <span><span class="legend-dot" style="background:#ef4444"></span>Unverified</span>
-          <span>Dashed: imports · Solid: calls</span>
-        </div>
-        <button id="clear-highlight-btn" class="secondary" type="button">Clear highlight</button>
-      </div>
-      <div id="graph-note" class="graph-note"></div>
-      <div class="graph-canvas-wrap">
-        <div id="graph-canvas"></div>
-      </div>
-      <div id="node-details" class="node-details">
-        <div class="node-details-title">Node details</div>
-        <div class="node-details-meta">Click a node in the dependency graph to inspect it.</div>
-      </div>
-    </section>
-  </div>
+  <footer>
+    <div class="composer">
+      <textarea
+        id="question-input"
+        rows="1"
+        placeholder="Ask a question about the repository... (Enter to send, Shift+Enter for newline)"
+      ></textarea>
+      <button id="send-btn" type="button">Send</button>
+    </div>
+  </footer>
 
   <script>
     const statusLine = document.getElementById("status-line");
     const indexBtn = document.getElementById("index-btn");
-    const clearHighlightBtn = document.getElementById("clear-highlight-btn");
     const chatEl = document.getElementById("chat");
     const emptyState = document.getElementById("empty-state");
     const questionInput = document.getElementById("question-input");
     const sendBtn = document.getElementById("send-btn");
-    const graphCanvas = document.getElementById("graph-canvas");
-    const graphNote = document.getElementById("graph-note");
-    const nodeDetailsEl = document.getElementById("node-details");
 
     let isRequestInFlight = false;
-    let rawGraph = { nodes: [], edges: [] };
-    let visNetwork = null;
-    let nodesDataset = null;
-    let edgesDataset = null;
-    let activeHighlight = null;
-    let activeBubbleEl = null;
-
-    // Session tracking for answers and citation-to-node links.
-    const sessionAnswers = [];
-    const citationElements = [];
 
     function clearEmptyState() {
       if (emptyState && emptyState.parentNode) {
@@ -571,302 +460,136 @@
       }
     }
 
-    function baseNodeStyle(node) {
-      const isFile = node.kind === "file";
-      return {
-        id: node.id,
-        label: node.label,
-        shape: isFile ? "box" : "ellipse",
-        color: {
-          background: isFile ? "#1e293b" : "#0f3443",
-          border: isFile ? "#64748b" : "#38bdf8",
-          highlight: {
-            background: isFile ? "#334155" : "#155e75",
-            border: "#93c5fd",
-          },
-        },
-        font: { color: "#f1f5f9", size: 13 },
-        borderWidth: 1.5,
-        shapeProperties: { borderDashes: false },
-      };
+    // Safely render inline **bold** and `code` tokens using createElement/textContent only.
+    function appendFormattedInline(container, text) {
+      const pattern = /(\*\*[^*]+\*\*|`[^`]+`)/g;
+      let lastIndex = 0;
+      let match;
+      while ((match = pattern.exec(text)) !== null) {
+        if (match.index > lastIndex) {
+          container.appendChild(
+            document.createTextNode(text.slice(lastIndex, match.index))
+          );
+        }
+        const token = match[0];
+        if (token.startsWith("**") && token.endsWith("**")) {
+          const strong = document.createElement("strong");
+          strong.textContent = token.slice(2, -2);
+          container.appendChild(strong);
+        } else if (token.startsWith("`") && token.endsWith("`")) {
+          const code = document.createElement("code");
+          code.className = "inline-code";
+          code.textContent = token.slice(1, -1);
+          container.appendChild(code);
+        }
+        lastIndex = pattern.lastIndex;
+      }
+      if (lastIndex < text.length) {
+        container.appendChild(document.createTextNode(text.slice(lastIndex)));
+      }
     }
 
-    function baseEdgeStyle(edge, idx) {
-      const isImport = edge.kind === "imports";
-      return {
-        id: "e:" + idx + ":" + edge.source + "->" + edge.target + ":" + edge.kind,
-        from: edge.source,
-        to: edge.target,
-        dashes: isImport,
-        arrows: "to",
-        color: { color: "#64748b", opacity: 0.75 },
-        width: 1.4,
-      };
+    function parseTableRow(line) {
+      let trimmed = line.trim();
+      if (trimmed.startsWith("|")) trimmed = trimmed.slice(1);
+      if (trimmed.endsWith("|")) trimmed = trimmed.slice(0, -1);
+      return trimmed.split("|").map((c) => c.trim());
     }
 
-    function findMatchingGraphNodesForCitation(cit) {
-      const matches = [];
-      for (const n of rawGraph.nodes) {
-        if (n.kind === "file" && n.id === cit.path) {
-          matches.push(n.id);
-        } else if (
-          n.kind !== "file" &&
-          n.path === cit.path &&
-          cit.start_line <= (n.end_line || 0) &&
-          (n.start_line || 0) <= cit.end_line
+    function isTableSeparator(line) {
+      return /^\|?[\s:-]+\|[\s|:-]*$/.test(line.trim());
+    }
+
+    // Safely build structured DOM elements (headings, cards/bullets, tables, paragraphs) without innerHTML.
+    function renderStructuredAnswer(text) {
+      const container = document.createElement("div");
+      container.className = "answer-body";
+      const lines = (text || "").split(/\r?\n/);
+
+      let i = 0;
+      while (i < lines.length) {
+        const rawLine = lines[i];
+        const line = rawLine.trim();
+
+        if (!line) {
+          i++;
+          continue;
+        }
+
+        // Markdown table block
+        if (
+          line.includes("|") &&
+          i + 1 < lines.length &&
+          isTableSeparator(lines[i + 1])
         ) {
-          matches.push(n.id);
+          const wrap = document.createElement("div");
+          wrap.className = "answer-table-wrap";
+          const table = document.createElement("table");
+          table.className = "answer-table";
+
+          const thead = document.createElement("thead");
+          const trHead = document.createElement("tr");
+          for (const cell of parseTableRow(line)) {
+            const th = document.createElement("th");
+            appendFormattedInline(th, cell);
+            trHead.appendChild(th);
+          }
+          thead.appendChild(trHead);
+          table.appendChild(thead);
+
+          i += 2;
+          const tbody = document.createElement("tbody");
+          while (i < lines.length && lines[i].trim().includes("|")) {
+            const rowCells = parseTableRow(lines[i]);
+            const tr = document.createElement("tr");
+            for (const cell of rowCells) {
+              const td = document.createElement("td");
+              appendFormattedInline(td, cell);
+              tr.appendChild(td);
+            }
+            tbody.appendChild(tr);
+            i++;
+          }
+          table.appendChild(tbody);
+          wrap.appendChild(table);
+          container.appendChild(wrap);
+          continue;
         }
-      }
-      return matches;
-    }
 
-    function renderGraphFallback(reason) {
-      graphCanvas.textContent = "";
-      const box = document.createElement("div");
-      box.className = "graph-fallback";
-
-      const heading = document.createElement("div");
-      heading.textContent = reason + " Showing text fallback:";
-      heading.style.marginBottom = "10px";
-      heading.style.color = "#f1f5f9";
-      box.appendChild(heading);
-
-      const nodesTitle = document.createElement("div");
-      nodesTitle.textContent = "Nodes (" + rawGraph.nodes.length + "):";
-      box.appendChild(nodesTitle);
-
-      const nodeList = document.createElement("ul");
-      for (const n of rawGraph.nodes) {
-        const li = document.createElement("li");
-        li.textContent = n.id + " [" + n.kind + "]";
-        nodeList.appendChild(li);
-      }
-      box.appendChild(nodeList);
-
-      const edgesTitle = document.createElement("div");
-      edgesTitle.textContent = "Edges (" + rawGraph.edges.length + "):";
-      edgesTitle.style.marginTop = "10px";
-      box.appendChild(edgesTitle);
-
-      const edgeList = document.createElement("ul");
-      for (const e of rawGraph.edges) {
-        const li = document.createElement("li");
-        li.textContent = e.source + " -[" + e.kind + "]-> " + e.target;
-        edgeList.appendChild(li);
-      }
-      box.appendChild(edgeList);
-      graphCanvas.appendChild(box);
-    }
-
-    function renderGraph(data) {
-      rawGraph = data || { nodes: [], edges: [] };
-      if (typeof vis === "undefined" || !vis.Network) {
-        renderGraphFallback("vis-network CDN unavailable.");
-        return;
-      }
-
-      graphCanvas.textContent = "";
-      nodesDataset = new vis.DataSet(rawGraph.nodes.map(baseNodeStyle));
-      edgesDataset = new vis.DataSet(rawGraph.edges.map(baseEdgeStyle));
-
-      const options = {
-        interaction: {
-          hover: true,
-          tooltipDelay: 150,
-        },
-        physics: {
-          enabled: true,
-          barnesHut: {
-            gravitationalConstant: -3500,
-            springLength: 140,
-            springConstant: 0.04,
-          },
-          stabilization: {
-            iterations: 160,
-          },
-        },
-        layout: {
-          improvedLayout: true,
-        },
-      };
-
-      visNetwork = new vis.Network(
-        graphCanvas,
-        { nodes: nodesDataset, edges: edgesDataset },
-        options
-      );
-
-      visNetwork.once("stabilized", () => {
-        if (visNetwork) {
-          visNetwork.setOptions({ physics: { enabled: false } });
+        // Heading
+        if (/^#{1,4}\s+/.test(line)) {
+          const h = document.createElement("div");
+          h.className = "answer-heading";
+          appendFormattedInline(h, line.replace(/^#{1,4}\s+/, ""));
+          container.appendChild(h);
+          i++;
+          continue;
         }
-      });
 
-      visNetwork.on("click", (params) => {
-        if (params.nodes && params.nodes.length > 0) {
-          showNodeDetails(params.nodes[0]);
+        // Bullet or numbered list block
+        if (/^([-*•]|\d+\.)\s+/.test(line)) {
+          const ul = document.createElement("ul");
+          ul.className = "answer-list";
+          while (i < lines.length && /^([-*•]|\d+\.)\s+/.test(lines[i].trim())) {
+            const li = document.createElement("li");
+            const itemText = lines[i].trim().replace(/^([-*•]|\d+\.)\s+/, "");
+            appendFormattedInline(li, itemText);
+            ul.appendChild(li);
+            i++;
+          }
+          container.appendChild(ul);
+          continue;
         }
-      });
 
-      visNetwork.on("hoverNode", (params) => {
-        highlightChatCitationsForNode(params.node, true);
-      });
-
-      visNetwork.on("blurNode", () => {
-        highlightChatCitationsForNode(null, false);
-      });
-
-      if (activeHighlight) {
-        applyHighlight(activeHighlight.highlight, activeHighlight.status);
-      }
-    }
-
-    async function fetchGraph() {
-      try {
-        const res = await fetch("/graph");
-        if (!res.ok) throw new Error("HTTP " + res.status);
-        const data = await parseJsonSafe(res);
-        renderGraph(data);
-      } catch (err) {
-        renderGraphFallback("Failed to load graph: " + err.message);
-      }
-    }
-
-    function applyHighlight(highlight, status) {
-      activeHighlight = highlight ? { highlight, status } : null;
-
-      if (status === "step_limit" || status === "timeout") {
-        graphNote.style.display = "block";
-        graphNote.textContent = "Partial evidence only.";
-      } else {
-        graphNote.style.display = "none";
-        graphNote.textContent = "";
+        // Regular paragraph
+        const p = document.createElement("p");
+        p.className = "answer-para";
+        appendFormattedInline(p, line);
+        container.appendChild(p);
+        i++;
       }
 
-      if (!nodesDataset || !edgesDataset) return;
-
-      if (!highlight) {
-        nodesDataset.update(rawGraph.nodes.map(baseNodeStyle));
-        edgesDataset.update(rawGraph.edges.map(baseEdgeStyle));
-        return;
-      }
-
-      const hlNodes = new Set(highlight.nodes || []);
-      const targetNodes = new Set(highlight.target_nodes || []);
-      const unverifiedNodes = new Set(highlight.unverified_nodes || []);
-      const hlEdges = new Set(
-        (highlight.edges || []).map((e) => e.source + "->" + e.target + ":" + e.kind)
-      );
-
-      const nodeUpdates = rawGraph.nodes.map((node) => {
-        const base = baseNodeStyle(node);
-        if (unverifiedNodes.has(node.id)) {
-          return {
-            ...base,
-            color: { background: "#7f1d1d", border: "#ef4444" },
-            font: { color: "#fecaca", size: 13 },
-            borderWidth: 2.5,
-            shapeProperties: { borderDashes: [5, 5] },
-          };
-        }
-        if (targetNodes.has(node.id)) {
-          return {
-            ...base,
-            color: { background: "#1d4ed8", border: "#60a5fa" },
-            font: { color: "#ffffff", size: 14 },
-            borderWidth: 2.5,
-          };
-        }
-        if (hlNodes.has(node.id)) {
-          return {
-            ...base,
-            color: { background: "#065f46", border: "#10b981" },
-            font: { color: "#ecfdf5", size: 13 },
-            borderWidth: 2.5,
-          };
-        }
-        return {
-          ...base,
-          color: { background: "#111827", border: "#1f2937" },
-          font: { color: "#475569", size: 12 },
-          borderWidth: 1,
-        };
-      });
-
-      const edgeUpdates = rawGraph.edges.map((edge, idx) => {
-        const base = baseEdgeStyle(edge, idx);
-        const key = edge.source + "->" + edge.target + ":" + edge.kind;
-        if (hlEdges.has(key)) {
-          return {
-            ...base,
-            color: { color: "#34d399", opacity: 1.0 },
-            width: 2.6,
-          };
-        }
-        return {
-          ...base,
-          color: { color: "#334155", opacity: 0.2 },
-          width: 1,
-        };
-      });
-
-      nodesDataset.update(nodeUpdates);
-      edgesDataset.update(edgeUpdates);
-    }
-
-    function showNodeDetails(nodeId) {
-      const node = rawGraph.nodes.find((n) => n.id === nodeId);
-      nodeDetailsEl.textContent = "";
-
-      const title = document.createElement("div");
-      title.className = "node-details-title";
-      title.textContent = node ? node.id : nodeId;
-      nodeDetailsEl.appendChild(title);
-
-      const meta = document.createElement("div");
-      meta.className = "node-details-meta";
-      if (node) {
-        let info = "kind: " + node.kind;
-        if (node.start_line && node.end_line) {
-          info += " | lines: " + node.start_line + "-" + node.end_line;
-        }
-        meta.textContent = info;
-      } else {
-        meta.textContent = "Node not in current graph.";
-      }
-      nodeDetailsEl.appendChild(meta);
-
-      const citingAnswers = sessionAnswers.filter((entry) =>
-        entry.citedNodeIds.has(nodeId)
-      );
-      if (citingAnswers.length > 0) {
-        const list = document.createElement("ul");
-        list.className = "node-details-cites";
-        for (const ans of citingAnswers) {
-          const li = document.createElement("li");
-          li.textContent = "Q: " + ans.question;
-          list.appendChild(li);
-        }
-        nodeDetailsEl.appendChild(list);
-      }
-    }
-
-    function highlightChatCitationsForNode(nodeId, isHovering) {
-      for (const item of citationElements) {
-        if (isHovering && nodeId && item.nodeIds.includes(nodeId)) {
-          item.el.classList.add("hovered");
-        } else {
-          item.el.classList.remove("hovered");
-        }
-      }
-    }
-
-    function focusNodeInGraph(nodeId) {
-      if (!visNetwork || !nodesDataset || !nodesDataset.get(nodeId)) return;
-      visNetwork.selectNodes([nodeId]);
-      visNetwork.focus(nodeId, { scale: 1.2, animation: { duration: 350 } });
-      showNodeDetails(nodeId);
+      return container;
     }
 
     function appendUserMessage(text) {
@@ -897,38 +620,13 @@
       scrollToBottom();
     }
 
-    function setActiveAnswerBubble(bubble, highlight, status) {
-      if (activeBubbleEl) {
-        activeBubbleEl.classList.remove("active-answer");
-      }
-      activeBubbleEl = bubble;
-      if (bubble) {
-        bubble.classList.add("active-answer");
-      }
-      applyHighlight(highlight, status);
-    }
-
-    function appendAgentMessage(questionText, data) {
+    function appendAgentMessage(data) {
       clearEmptyState();
       const row = document.createElement("div");
       row.className = "msg-row agent";
 
       const bubble = document.createElement("div");
       bubble.className = "bubble";
-
-      const citedNodeIds = new Set();
-      if (Array.isArray(data.citations)) {
-        for (const cit of data.citations) {
-          for (const nid of findMatchingGraphNodesForCitation(cit)) {
-            citedNodeIds.add(nid);
-          }
-        }
-      }
-      sessionAnswers.push({ question: questionText, data, citedNodeIds });
-
-      bubble.addEventListener("click", () => {
-        setActiveAnswerBubble(bubble, data.highlight, data.status);
-      });
 
       const badgeRow = document.createElement("div");
       badgeRow.className = "badge-row";
@@ -946,10 +644,7 @@
       }
       bubble.appendChild(badgeRow);
 
-      const answerEl = document.createElement("div");
-      answerEl.className = "answer-text";
-      answerEl.textContent = data.answer || "";
-      bubble.appendChild(answerEl);
+      bubble.appendChild(renderStructuredAnswer(data.answer || ""));
 
       if (data.status === "step_limit" || data.status === "timeout") {
         const noteEl = document.createElement("div");
@@ -977,9 +672,6 @@
           const li = document.createElement("li");
           li.className = "citation-item";
 
-          const matchedNodes = findMatchingGraphNodesForCitation(cit);
-          citationElements.push({ el: li, nodeIds: matchedNodes });
-
           const loc = document.createElement("span");
           loc.textContent = cit.path + ":" + cit.start_line + "-" + cit.end_line;
           li.appendChild(loc);
@@ -988,16 +680,6 @@
           badge.className = "badge " + (cit.verified ? "green" : "red");
           badge.textContent = cit.verified ? "verified" : "unverified";
           li.appendChild(badge);
-
-          li.addEventListener("click", (event) => {
-            event.stopPropagation();
-            setActiveAnswerBubble(bubble, data.highlight, data.status);
-            if (matchedNodes.length > 0) {
-              // Prefer symbol node over file node if available.
-              const symbolNode = matchedNodes.find((id) => id.includes("::"));
-              focusNodeInGraph(symbolNode || matchedNodes[0]);
-            }
-          });
 
           list.appendChild(li);
         }
@@ -1009,7 +691,6 @@
       if (Array.isArray(data.trace) && data.trace.length > 0) {
         const details = document.createElement("details");
         details.className = "trace-box";
-        details.addEventListener("click", (e) => e.stopPropagation());
 
         const summary = document.createElement("summary");
         summary.textContent = "Agent steps (" + data.trace.length + ")";
@@ -1033,7 +714,6 @@
 
       row.appendChild(bubble);
       chatEl.appendChild(row);
-      setActiveAnswerBubble(bubble, data.highlight, data.status);
       scrollToBottom();
     }
 
@@ -1058,8 +738,6 @@
           throw new Error(data.detail || "HTTP " + res.status);
         }
         renderIndexStatus(data);
-        activeHighlight = null;
-        await fetchGraph();
       } catch (err) {
         appendErrorMessage("Indexing failed: " + err.message);
       } finally {
@@ -1097,12 +775,12 @@
           throw new Error(data.detail || "HTTP " + res.status);
         }
         if (thinkingEl.parentNode) thinkingEl.parentNode.removeChild(thinkingEl);
-        appendAgentMessage(question, data);
+        appendAgentMessage(data);
       } catch (err) {
         if (thinkingEl.parentNode) thinkingEl.parentNode.removeChild(thinkingEl);
         const msg =
           err.name === "AbortError"
-            ? "Request timed out after 65s. Check the uvicorn terminal for Gemini rate limits or errors."
+            ? "Request timed out after 65s. Check the uvicorn terminal for rate limits or errors."
             : err.message;
         appendErrorMessage(msg);
       } finally {
@@ -1113,9 +791,6 @@
     }
 
     indexBtn.addEventListener("click", handleIndexClick);
-    clearHighlightBtn.addEventListener("click", () => {
-      setActiveAnswerBubble(null, null, null);
-    });
     sendBtn.addEventListener("click", handleSend);
     questionInput.addEventListener("keydown", (event) => {
       if (event.key === "Enter" && !event.shiftKey) {
@@ -1125,7 +800,6 @@
     });
 
     fetchIndexStatus();
-    fetchGraph();
   </script>
 </body>
 </html>
