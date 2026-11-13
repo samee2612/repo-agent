@@ -29,15 +29,25 @@ class LLMClient(ABC):
 
 
 def _is_retryable_error(exc: Exception) -> bool:
-    """Return True if the exception represents an HTTP 429 or 503 error."""
+    """Return True if the exception represents an HTTP 429, 503, or 504 error."""
     code = getattr(exc, "code", None)
-    if code in (429, 503):
+    if code in (429, 503, 504):
         return True
     status_code = getattr(exc, "status_code", None)
-    if status_code in (429, 503):
+    if status_code in (429, 503, 504):
         return True
     msg = str(exc)
-    return "429" in msg or "503" in msg or "UNAVAILABLE" in msg or "RESOURCE_EXHAUSTED" in msg
+    return any(
+        token in msg
+        for token in (
+            "429",
+            "503",
+            "504",
+            "UNAVAILABLE",
+            "RESOURCE_EXHAUSTED",
+            "DEADLINE_EXCEEDED",
+        )
+    )
 
 
 class GeminiClient(LLMClient):
@@ -52,6 +62,7 @@ class GeminiClient(LLMClient):
         self.initial_backoff = initial_backoff
         self._client: Any = None
         self._cached_key: str | None = None
+        self._supports_thinking_config: bool = True
 
     def generate(
         self,
@@ -59,37 +70,57 @@ class GeminiClient(LLMClient):
         tools: list[Any],
         system: str,
     ) -> Any:
-        """Call Gemini generate_content with exponential backoff on 429/503."""
+        """Call Gemini generate_content with exponential backoff on 429/503/504."""
         api_key, model_name = get_gemini_config()
         from google import genai
         from google.genai import types
 
         if self._client is None or self._cached_key != api_key:
-            self._client = genai.Client(
-                api_key=api_key,
-                http_options=types.HttpOptions(timeout=20000),
-            )
+            self._client = genai.Client(api_key=api_key)
             self._cached_key = api_key
 
-        config = types.GenerateContentConfig(
-            system_instruction=system,
-            tools=tools,
-        )
+        def _make_config(use_thinking: bool) -> Any:
+            kwargs: dict[str, Any] = {
+                "system_instruction": system,
+                "tools": tools,
+                "temperature": 0.0,
+            }
+            if use_thinking and hasattr(types, "ThinkingConfig"):
+                try:
+                    kwargs["thinking_config"] = types.ThinkingConfig(thinking_budget=0)
+                except Exception:
+                    pass
+            return types.GenerateContentConfig(**kwargs)
 
         last_exc: Exception | None = None
         for attempt in range(self.max_retries + 1):
             try:
+                config = _make_config(self._supports_thinking_config)
                 return self._client.models.generate_content(
                     model=model_name,
                     contents=history,
                     config=config,
                 )
             except Exception as exc:
+                msg = str(exc)
+                if self._supports_thinking_config and (
+                    "thinking" in msg.lower() or "400" in msg
+                ):
+                    self._supports_thinking_config = False
+                    try:
+                        config = _make_config(False)
+                        return self._client.models.generate_content(
+                            model=model_name,
+                            contents=history,
+                            config=config,
+                        )
+                    except Exception as inner_exc:
+                        exc = inner_exc
                 last_exc = exc
                 if attempt < self.max_retries and _is_retryable_error(exc):
                     delay = self.initial_backoff * (2**attempt)
                     logger.warning(
-                        "Gemini rate-limited/unavailable (%s); retrying in %.1fs (%d/%d)",
+                        "Gemini transient error (%s); retrying in %.1fs (%d/%d)",
                         exc,
                         delay,
                         attempt + 1,
