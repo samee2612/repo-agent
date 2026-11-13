@@ -65,7 +65,10 @@ class GeminiClient(LLMClient):
         from google.genai import types
 
         if self._client is None or self._cached_key != api_key:
-            self._client = genai.Client(api_key=api_key)
+            self._client = genai.Client(
+                api_key=api_key,
+                http_options=types.HttpOptions(timeout=20000),
+            )
             self._cached_key = api_key
 
         config = types.GenerateContentConfig(
